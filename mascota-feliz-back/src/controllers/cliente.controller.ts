@@ -1,3 +1,4 @@
+import { service } from '@loopback/core';
 import {
   Count,
   CountSchema,
@@ -17,14 +18,43 @@ import {
   requestBody,
   response,
 } from '@loopback/rest';
-import {Cliente} from '../models';
+import fetch from 'cross-fetch';
+import {Cliente, Credenciales} from '../models';
 import {ClienteRepository} from '../repositories';
+import { ClienteService } from '../services';
+import { AutenticacionService } from '../services/autenticacion.service';
 
+//@authenticate("clie")
 export class ClienteController {
   constructor(
     @repository(ClienteRepository)
     public clienteRepository : ClienteRepository,
+    @service(AutenticacionService)
+    public autenticationService: AutenticacionService,
+    @service(ClienteService)
+    public clienteService: ClienteService,
   ) {}
+
+  @post('/validar-acceso')
+  @response (200, {
+    description: 'Validar las credenciales de acceso del cliente'
+  })
+  async validavalidarAccesoClienter(
+    @requestBody() credenciales: Credenciales
+  ){
+    let clie = await this.autenticationService.validarAccesoCliente(credenciales.usuario, credenciales.clave);
+    if (clie){
+      let token = this.autenticationService.generarTokenJWTCliente(clie);
+      return {
+        datos:{
+          nombre: `${clie.primerNombre} ${clie.primerApellido}`,
+          email: clie.email,
+          id: clie.id
+        },
+        token: token
+      }
+    }
+  }
 
   @post('/clientes')
   @response(200, {
@@ -44,7 +74,18 @@ export class ClienteController {
     })
     cliente: Omit<Cliente, 'id'>,
   ): Promise<Cliente> {
-    return this.clienteRepository.create(cliente);
+    cliente.clave = this.autenticationService.CifrarClave(cliente.clave);
+    let clie = await this.clienteRepository.create(cliente);
+
+    let destino = cliente.email;
+    let asunto = 'Registro exitoso'
+    let contenido = `Hola ${cliente.primerNombre} ${cliente.primerApellido}, su usuario es: ${cliente.email}, su contraseña es:${cliente.clave}`;
+
+    fetch(`http://localhost:5000/enviar-correo?correo=${destino}&asunto=${asunto}&mensaje=${contenido}`)
+      .then((data) => {
+        console.log(`Esta es la respuesta del servicio ${data}`);
+      })
+    return clie;
   }
 
   @get('/clientes/count')
@@ -109,6 +150,24 @@ export class ClienteController {
     @param.filter(Cliente, {exclude: 'where'}) filter?: FilterExcludingWhere<Cliente>
   ): Promise<Cliente> {
     return this.clienteRepository.findById(id, filter);
+  }
+
+  @get('/cliente-Mascota/{numeroDocumento}')
+  @response(200, {
+  description: 'Consulta de cliente con la mascota',
+  content: {
+      'application/json': {
+      schema: {
+          type: 'array',
+          items: getModelSchemaRef(Cliente, {includeRelations: true}),
+        },
+      },
+    },
+  })
+  async ClientexMascota(
+  @param.path.string('numeroDocumento')numeroDocumento:string
+  ): Promise<Cliente[]> {
+    return this.clienteService.getClienteMascota(numeroDocumento);
   }
 
   @patch('/clientes/{id}')

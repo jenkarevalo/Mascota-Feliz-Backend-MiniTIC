@@ -1,3 +1,4 @@
+import { service } from '@loopback/core';
 import {
   Count,
   CountSchema,
@@ -17,14 +18,43 @@ import {
   requestBody,
   response,
 } from '@loopback/rest';
-import {Asesor} from '../models';
+import fetch from 'cross-fetch';
+import {Asesor, Credenciales} from '../models';
 import {AsesorRepository} from '../repositories';
+import { AutenticacionService } from '../services/autenticacion.service';
+import { AsesorService } from '../services';
 
+//@authenticate("ase")
 export class AsesorController {
   constructor(
     @repository(AsesorRepository)
     public asesorRepository : AsesorRepository,
+    @service(AutenticacionService)
+    public autenticationService: AutenticacionService,
+    @service(AsesorService)
+    public asesorService: AsesorService,
   ) {}
+
+  @post('/validar-acceso-ase')
+  @response (200, {
+    description: 'Validar las credenciales de acceso del asesor'
+  })
+  async validarAccesoAsesor(
+    @requestBody() credenciales: Credenciales
+  ){
+    let ase = await this.autenticationService.validarAccesoAsesor(credenciales.usuario, credenciales.clave);
+    if (ase){
+      let token = this.autenticationService.generarTokenJWTAsesor(ase);
+      return {
+        datos:{
+          nombre: `${ase.primerNombre} ${ase.primerApellido}`,
+          email: ase.email,
+          id: ase.id
+        },
+        token: token
+      }
+    }
+  }
 
   @post('/asesores')
   @response(200, {
@@ -44,7 +74,18 @@ export class AsesorController {
     })
     asesor: Omit<Asesor, 'id'>,
   ): Promise<Asesor> {
-    return this.asesorRepository.create(asesor);
+    asesor.clave = this.autenticationService.CifrarClave(asesor.clave);
+    let ase = await this.asesorRepository.create(asesor);
+
+    let destino = asesor.email;
+    let asunto = 'Registro exitoso'
+    let contenido = `Hola ${asesor.primerNombre} ${asesor.primerApellido}, su usuario es: ${asesor.email}, su contraseña es:${asesor.clave} `;
+
+    fetch(`http://localhost:5000/enviar-correo?correo=${destino}&asunto=${asunto}&mensaje=${contenido}`)
+      .then((data) => {
+        console.log(`Esta es la respuesta del servicio ${data}`);
+      })
+    return ase;
   }
 
   @get('/asesores/count')
@@ -109,6 +150,24 @@ export class AsesorController {
     @param.filter(Asesor, {exclude: 'where'}) filter?: FilterExcludingWhere<Asesor>
   ): Promise<Asesor> {
     return this.asesorRepository.findById(id, filter);
+  }
+
+  @get('/asesor-solicitud/{numeroDocumento}')
+  @response(200, {
+  description: 'Consulta de asesor con las solicitudes',
+  content: {
+      'application/json': {
+      schema: {
+          type: 'array',
+          items: getModelSchemaRef(Asesor, {includeRelations: true}),
+        },
+      },
+    },
+  })
+  async AsesorDisponible(
+  @param.path.string('numeroDocumento') numeroDocumento: string
+  ): Promise<Asesor[]> {
+    return this.asesorService.getAsesorSolicitud(numeroDocumento);
   }
 
   @patch('/asesores/{id}')

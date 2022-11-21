@@ -10,3 +10,4 @@ export * from './administrador.model';
 export * from './asesor.model';
 export * from './historia-clinica.model';
 export * from './imagen.model';
+export * from './credenciales.model';

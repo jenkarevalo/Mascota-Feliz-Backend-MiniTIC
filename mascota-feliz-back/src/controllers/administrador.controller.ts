@@ -1,3 +1,4 @@
+import { service } from '@loopback/core';
 import {
   Count,
   CountSchema,
@@ -17,14 +18,43 @@ import {
   requestBody,
   response,
 } from '@loopback/rest';
-import {Administrador} from '../models';
+import fetch from 'cross-fetch';
+import {Administrador, Credenciales} from '../models';
 import {AdministradorRepository} from '../repositories';
+import { AdministradorService } from '../services';
+import { AutenticacionService } from '../services/autenticacion.service';
 
+//@authenticate("admin")
 export class AdministradorController {
   constructor(
-    @repository(AdministradorRepository)
+    @repository(AdministradorRepository) 
     public administradorRepository : AdministradorRepository,
+    @service(AutenticacionService) 
+    public autenticationService: AutenticacionService,
+    @service(AdministradorService)
+    public administradorService: AdministradorService,
   ) {}
+
+  @post('/validar-acceso-admin')
+  @response (200, {
+    description: 'Validar las credenciales de acceso del administrador'
+  })
+  async validarAccesovalidarAccesoAdmin(
+    @requestBody() credenciales: Credenciales
+  ){
+    let admin = await this.autenticationService.validarAccesoAdmin(credenciales.usuario, credenciales.clave);
+    if (admin){
+      let token = this.autenticationService.generarTokenJWTAdmin(admin);
+      return {
+        datos:{
+          nombre: `${admin.primerNombre} ${admin.primerApellido}`,
+          email: admin.email,
+          id: admin.id
+        },
+        token: token
+      }
+    }
+  }
 
   @post('/administradores')
   @response(200, {
@@ -44,7 +74,18 @@ export class AdministradorController {
     })
     administrador: Omit<Administrador, 'id'>,
   ): Promise<Administrador> {
-    return this.administradorRepository.create(administrador);
+    administrador.clave = this.autenticationService.CifrarClave(administrador.clave);
+    let admin = await this.administradorRepository.create(administrador);
+
+    let destino = administrador.email;
+    let asunto = 'Registro exitoso'
+    let contenido = `Hola ${administrador.primerNombre} ${administrador.primerApellido}, su usuario es: ${administrador.email}, su contraseña es:${administrador.clave} `;
+
+    fetch(`http://localhost:5000/enviar-correo?correo=${destino}&asunto=${asunto}&mensaje=${contenido}`)
+      .then((data) => {
+        console.log(`Esta es la respuesta del servicio ${data}`);
+      })
+    return admin;
   }
 
   @get('/administradores/count')
@@ -109,6 +150,24 @@ export class AdministradorController {
     @param.filter(Administrador, {exclude: 'where'}) filter?: FilterExcludingWhere<Administrador>
   ): Promise<Administrador> {
     return this.administradorRepository.findById(id, filter);
+  }
+
+  @get('/administrador-plan/{numeroDocumento}')
+  @response(200, {
+  description: 'Consulta de administrador con planes',
+  content: {
+      'application/json': {
+      schema: {
+          type: 'array',
+          items: getModelSchemaRef(Administrador, {includeRelations: true}),
+        },
+      },
+    },
+  })
+  async AdministradorDisponible(
+  @param.path.string('numeroDocumento') numeroDocumento: string
+  ): Promise<Administrador[]> {
+    return this.administradorService.getAdministradorPlan(numeroDocumento);
   }
 
   @patch('/administradores/{id}')
