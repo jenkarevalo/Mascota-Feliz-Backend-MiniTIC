@@ -35,7 +35,7 @@ export class AdministradorController {
     public administradorService: AdministradorService,
   ) {}
 
-  @post('/validar-acceso-admin')
+  @post('/validar-acceso')
   @response (200, {
     description: 'Validar las credenciales de acceso del administrador'
   })

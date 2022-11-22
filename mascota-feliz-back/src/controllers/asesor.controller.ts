@@ -35,7 +35,7 @@ export class AsesorController {
     public asesorService: AsesorService,
   ) {}
 
-  @post('/validar-acceso-ase')
+  @post('/validar-acceso')
   @response (200, {
     description: 'Validar las credenciales de acceso del asesor'
   })
