@@ -16,7 +16,7 @@ export class EstrategiaCliente implements AuthenticationStrategy{
     async authenticate(request: Request): Promise<UserProfile | RedirectRoute | undefined> {
         let token = parseBearerToken(request);
         if (token){
-          let datos = this.autenticacionService.validarTokenJWTCliente(token);
+          let datos = this.autenticacionService.validarTokenJWT(token);
            if (datos){ 
               let perfil: UserProfile = Object.assign({
                  nombre: datos.data.primerNombre

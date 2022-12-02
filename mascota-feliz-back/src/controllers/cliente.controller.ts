@@ -39,12 +39,12 @@ export class ClienteController {
   @response (200, {
     description: 'Validar las credenciales de acceso del cliente'
   })
-  async validavalidarAccesoClienter(
+  async validarAcceso(
     @requestBody() credenciales: Credenciales
   ){
-    let clie = await this.autenticationService.validarAccesoCliente(credenciales.usuario, credenciales.clave);
+    let clie = await this.autenticationService.validarAcceso(credenciales.usuario, credenciales.clave);
     if (clie){
-      let token = this.autenticationService.generarTokenJWTCliente(clie);
+      let token = this.autenticationService.generarTokenJWT(clie);
       return {
         datos:{
           nombre: `${clie.primerNombre} ${clie.primerApellido}`,

@@ -6,19 +6,20 @@ import {Mascota} from './mascota.model';
 export class Cliente extends Entity {
   @property({
     type: 'string',
+    id: true,
+    generated: true,
+  })
+  id?: string;
+  
+  @property({
+    type: 'string',
     required: true,
   })
   primerNombre: string;
 
   @property({
     type: 'string',
-    id: true,
-    generated: true,
-  })
-  id?: string;
-
-  @property({
-    type: 'string',
+    required: true,
   })
   segundoNombre?: string;
 

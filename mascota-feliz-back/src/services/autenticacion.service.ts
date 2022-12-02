@@ -28,7 +28,7 @@ export class AutenticacionService {
     return this.CifrarClave(clave);
   }
 
-  validarAccesoCliente(usuario: string, contrasenia: string) {
+  validarAcceso(usuario: string, contrasenia: string) {
     try {
       let clie = this.clienteRepository.findOne({
         where: {
@@ -45,7 +45,7 @@ export class AutenticacionService {
     };
   };
 
-  generarTokenJWTCliente(cliente: Cliente) {
+  generarTokenJWT(cliente: Cliente) {
     let token = jwt.sign({
       date: {
         id: cliente.id,
@@ -58,7 +58,7 @@ export class AutenticacionService {
     return token;
   };
 
-  validarTokenJWTCliente(token: string) {
+  validarTokenJWT(token: string) {
     try {
       let datos = jwt.verify(token, llaves.claveJWT)
       return datos;
